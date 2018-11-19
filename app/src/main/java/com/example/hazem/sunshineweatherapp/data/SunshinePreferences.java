@@ -1,6 +1,10 @@
 package com.example.hazem.sunshineweatherapp.data;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.support.v7.preference.PreferenceManager;
+
+import com.example.hazem.sunshineweatherapp.R;
 
 public class SunshinePreferences {
 
@@ -72,8 +76,15 @@ public class SunshinePreferences {
      * "94043,USA" if SharedPreferences have not been implemented yet.
      */
     public static String getPreferredWeatherLocation(Context context) {
-        /** This will be implemented in a future **/
-        return getDefaultWeatherLocation();
+        SharedPreferences sharedPreferences =
+                PreferenceManager.getDefaultSharedPreferences(context);
+
+        String keyForLocation = context.getString(R.string.pref_location_key);
+        String defaultLocation = context.getString(R.string.pref_location_default);
+
+        String valueForLocation = sharedPreferences.getString(keyForLocation,defaultLocation);
+
+        return valueForLocation;
     }
 
     /**
@@ -113,7 +124,7 @@ public class SunshinePreferences {
 
     private static String getDefaultWeatherLocation() {
         /** This will be implemented in a future  **/
-        return DEFAULT_WEATHER_LOCATION;
+        return DEFAULT_MAP_LOCATION;
     }
 
     public static double[] getDefaultWeatherCoordinates() {
