@@ -1,8 +1,12 @@
 package com.example.hazem.sunshineweatherapp.utilities;
 
+import android.content.ContentValues;
 import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
+
+import com.example.hazem.sunshineweatherapp.data.SunshinePreferences;
+import com.example.hazem.sunshineweatherapp.data.WeatherContract;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -39,6 +43,35 @@ public class NetworkUtils {
     //this variable determine how many days in the future app will provide
     // weather information about it
     private static final Integer numberOfDaysToPredict = 5;
+
+    // variables for json parsing
+    /* Location information */
+    private static final String OWM_CITY = "city";
+    private static final String OWM_COORD = "coord";
+
+    /* Location coordinate */
+    private static final String OWM_LATITUDE = "lat";
+    private static final String OWM_LONGITUDE = "lon";
+
+    /* Weather information. Each day's forecast info is an element of the "list" array */
+    private static final String OWM_LIST = "list";
+
+    private static final String OWM_PRESSURE = "pressure";
+    private static final String OWM_HUMIDITY = "humidity";
+    private static final String OWM_WINDSPEED = "speed";
+    private static final String OWM_WIND_DIRECTION = "deg";
+
+    /* All temperatures are children of the "temp" object */
+    private static final String OWM_TEMPERATURE = "temp";
+
+    /* Max temperature for the day */
+    private static final String OWM_MAX = "max";
+    private static final String OWM_MIN = "min";
+
+    private static final String OWM_WEATHER = "weather";
+    private static final String OWM_WEATHER_ID = "id";
+
+    private static final String OWM_MESSAGE_CODE = "cod";
 
     /*
      * this method builds the final url used to query the weather server
@@ -98,49 +131,24 @@ public class NetworkUtils {
     }
 
     public static String[] getSimpleWeatherDataFromJson(Context context, String serverResponse) {
-        /* Location information */
-        String OWM_CITY = "city";
-        String OWM_COORD = "coord";
-
-        /* Location coordinate */
-        String OWM_LATITUDE = "lat";
-        String OWM_LONGITUDE = "lon";
-
-        /* Weather information. Each day's forecast info is an element of the "list" array */
-        String OWM_LIST = "list";
-
-        String OWM_PRESSURE = "pressure";
-        String OWM_HUMIDITY = "humidity";
-        String OWM_WINDSPEED = "speed";
-        String OWM_WIND_DIRECTION = "deg";
-
-        /* All temperatures are children of the "temp" object */
-        String OWM_TEMPERATURE = "temp";
-
-        /* Max temperature for the day */
-        String OWM_MAX = "max";
-        String OWM_MIN = "min";
-
-        String OWM_WEATHER = "weather";
-        String OWM_DESCRIPTION = "description";
-        String OWM_WEATHER_ID = "id";
-
-        String OWM_MESSAGE_CODE = "cod";
-
         /* String array to hold each day's weather String */
         String[] parsedWeatherData = null;
 
         try {
             JSONObject forecastJson = new JSONObject(serverResponse);
 
+            /* Is there an error? */
             if (forecastJson.has(OWM_MESSAGE_CODE)) {
-                int serverResponseCode = forecastJson.getInt(OWM_MESSAGE_CODE);
-                switch (serverResponseCode) {
+                int errorCode = forecastJson.getInt(OWM_MESSAGE_CODE);
+
+                switch (errorCode) {
                     case HttpURLConnection.HTTP_OK:
                         break;
                     case HttpURLConnection.HTTP_NOT_FOUND:
+                        /* Location invalid */
                         return null;
                     default:
+                        /* Server probably down */
                         return null;
                 }
             }
@@ -172,9 +180,14 @@ public class NetworkUtils {
                         weatherObject = weatherArray.getJSONObject(0);
                     }
 
+                    int weatherId = -1;
                     String weatherDescription = "";
-                    if (weatherObject.has(OWM_DESCRIPTION)) {
-                        weatherDescription = weatherObject.getString(OWM_DESCRIPTION);
+                    if (weatherObject.has(OWM_WEATHER_ID)) {
+                        weatherId = weatherObject.getInt(OWM_WEATHER_ID);
+
+                        weatherDescription = WeatherUtils.getStringForWeatherCondition(
+                                context,
+                                weatherId);
                     }
                     //End
 
@@ -214,5 +227,104 @@ public class NetworkUtils {
             Log.e(TAG, "getSimpleWeatherDataFromJson Function: " + e.getMessage());
         }
         return parsedWeatherData;
+    }
+
+    public static ContentValues[] getWeatherContentValuesFromJson(Context context, String forecastJsonStr) {
+
+        ContentValues[] weatherContentValues = new ContentValues[numberOfDaysToPredict];
+
+        try {
+            JSONObject forecastJson = new JSONObject(forecastJsonStr);
+
+            /* Is there an error? */
+            if (forecastJson.has(OWM_MESSAGE_CODE)) {
+                int errorCode = forecastJson.getInt(OWM_MESSAGE_CODE);
+
+                switch (errorCode) {
+                    case HttpURLConnection.HTTP_OK:
+                        break;
+                    case HttpURLConnection.HTTP_NOT_FOUND:
+                        /* Location invalid */
+                        return null;
+                    default:
+                        /* Server probably down */
+                        return null;
+                }
+            }
+
+            if (forecastJson.has(OWM_LIST)) {
+                JSONArray jsonWeatherArray = forecastJson.getJSONArray(OWM_LIST);
+
+                if(forecastJson.has(OWM_CITY)) {
+                    JSONObject cityJson = forecastJson.getJSONObject(OWM_CITY);
+
+
+                    if(cityJson.has(OWM_COORD)) {
+                        JSONObject cityCoord = cityJson.getJSONObject(OWM_COORD);
+
+                        double cityLatitude = cityCoord.getDouble(OWM_LATITUDE);
+                        double cityLongitude = cityCoord.getDouble(OWM_LONGITUDE);
+
+                    SunshinePreferences.setLocationDetails(context, cityLatitude, cityLongitude);
+
+                    }
+                }
+
+                // create those helper strings that will be used inside the loop to get the date
+                long localDate = System.currentTimeMillis();
+                long utcDate = SunshineDateUtils.getUTCDateFromLocal(localDate);
+                long normalizedUtcStartDay = SunshineDateUtils.normalizeDate(utcDate);
+
+                for (int i = 0; i < numberOfDaysToPredict; i++) {
+                    /* Get the JSON object representing the day */
+                    JSONObject dayForecast = jsonWeatherArray.getJSONObject(i);
+
+
+                    long dateTimeMillis = normalizedUtcStartDay + SunshineDateUtils.DAY_IN_MILLIS * i;
+
+                    double pressure = dayForecast.getDouble(OWM_PRESSURE);
+                    int humidity = dayForecast.getInt(OWM_HUMIDITY);
+                    double windSpeed = dayForecast.getDouble(OWM_WINDSPEED);
+                    double windDirection = dayForecast.getDouble(OWM_WIND_DIRECTION);
+
+                    /*
+                     * Description is in a child array called "weather", which is 1 element long.
+                     * That element also contains a weather code.
+                     */
+                    JSONObject weatherObject =
+                            dayForecast.getJSONArray(OWM_WEATHER).getJSONObject(0);
+
+                    int weatherId = weatherObject.getInt(OWM_WEATHER_ID);
+
+                    /*
+                     * Temperatures are sent by Open Weather Map in a child object called "temp".
+                     *
+                     * Editor's Note: Try not to name variables "temp" when working with temperature.
+                     * It confuses everybody. Temp could easily mean any number of things, including
+                     * temperature, temporary variable, temporary folder, temporary employee, or many
+                     * others, and is just a bad variable name.
+                     */
+                    JSONObject temperatureObject = dayForecast.getJSONObject(OWM_TEMPERATURE);
+                    double high = temperatureObject.getDouble(OWM_MAX);
+                    double low = temperatureObject.getDouble(OWM_MIN);
+
+                    ContentValues weatherValues = new ContentValues();
+                    weatherValues.put(WeatherContract.WeatherEntry.COLUMN_DATE, dateTimeMillis);
+                    weatherValues.put(WeatherContract.WeatherEntry.COLUMN_HUMIDITY, humidity);
+                    weatherValues.put(WeatherContract.WeatherEntry.COLUMN_PRESSURE, pressure);
+                    weatherValues.put(WeatherContract.WeatherEntry.COLUMN_WIND_SPEED, windSpeed);
+                    weatherValues.put(WeatherContract.WeatherEntry.COLUMN_DEGREES, windDirection);
+                    weatherValues.put(WeatherContract.WeatherEntry.COLUMN_MAX_TEMP, high);
+                    weatherValues.put(WeatherContract.WeatherEntry.COLUMN_MIN_TEMP, low);
+                    weatherValues.put(WeatherContract.WeatherEntry.COLUMN_WEATHER_ID, weatherId);
+
+                    weatherContentValues[i] = weatherValues;
+                }
+            }
+        } catch (JSONException e) {
+            Log.e(TAG, "getWeatherContentValuesFromJson Function: " + e.getMessage());
+        }
+
+        return weatherContentValues;
     }
 }

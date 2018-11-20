@@ -15,6 +15,15 @@ public class SunshineDateUtils {
     public static final long HOUR_IN_MILLIS = MINUTE_IN_MILLIS * 60;
     public static final long DAY_IN_MILLIS = HOUR_IN_MILLIS * 24;
 
+    public static boolean isDateNormalized(long millisSinceEpoch) {
+        boolean isDateNormalized = false;
+        if (millisSinceEpoch % DAY_IN_MILLIS == 0) {
+            isDateNormalized = true;
+        }
+
+        return isDateNormalized;
+    }
+
     /**
      * This method returns the number of days since the epoch (January 01, 1970, 12:00 Midnight UTC)
      * in UTC time from the current date.
@@ -88,7 +97,7 @@ public class SunshineDateUtils {
         String friendlyFormattedDate = "";
 
         long localDate = getLocalDateFromUTC(dateInMillis);
-        long dayNumber = getDayNumber(localDate);
+        long dayNumber = getDayNumber(localDate)+ 1;
         long currentDayNumber = getDayNumber(System.currentTimeMillis());
 
         if (dayNumber == currentDayNumber || showFullDate) {
