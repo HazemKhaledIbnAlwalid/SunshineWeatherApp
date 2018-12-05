@@ -73,18 +73,78 @@ public class NetworkUtils {
 
     private static final String OWM_MESSAGE_CODE = "cod";
 
-    /*
-     * this method builds the final url used to query the weather server
+    /* The days parameter allows us to designate how many days of weather data we want */
+    private static final String DAYS_PARAM = "cnt";
+
+
+    /**
+     * Retrieves the proper URL to query for the weather data. The reason for both this method as
+     * well as {@link #buildUrlWithLocationQuery(String)} is two fold.
+     * <p>
+     * 1) You should be able to just use one method when you need to create the URL within the
+     * app instead of calling both methods.
+     * 2) Later in Sunshine, you are going to add an alternate method of allowing the user
+     * to select their preferred location. Once you do so, there will be another way to form
+     * the URL using a latitude and longitude rather than just a location String. This method
+     * will "decide" which URL to build and return it.
      *
-     *   @param userLocation the main query parameter
-     *
-     *   @return completedUrl which is used to query the weather server
+     * @param context used to access other Utility methods
+     * @return URL to query weather service
      */
-    public static URL buildUrl(String userLocation) {
+
+    public static URL getUrl(Context context) {
+        if (SunshinePreferences.isLocationLatLonAvailable(context)) {
+            double[] preferredCoordinates = SunshinePreferences.getLocationCoordinates(context);
+            double latitude = preferredCoordinates[0];
+            double longitude = preferredCoordinates[1];
+            return buildUrlWithLatitudeLongitude(latitude, longitude);
+        } else {
+            String locationQuery = SunshinePreferences.getPreferredWeatherLocation(context);
+            return buildUrlWithLocationQuery(locationQuery);
+        }
+    }
+
+
+    /**
+     * Builds the URL used to talk to the weather server using latitude and longitude of a
+     * location.
+     *
+     * @param latitude  The latitude of the location
+     * @param longitude The longitude of the location
+     * @return The Url to use to query the weather server.
+     */
+    private static URL buildUrlWithLatitudeLongitude(Double latitude, Double longitude) {
+        Uri weatherQueryUri = Uri.parse(WEATHER_API_BASE_URL).buildUpon()
+                .appendQueryParameter(LAT_PARAM, String.valueOf(latitude))
+                .appendQueryParameter(LON_PARAM, String.valueOf(longitude))
+                .appendQueryParameter(FORMAT_PARAM, dataFormat)
+                .appendQueryParameter(UNITS_PARAM, unit)
+                .appendQueryParameter(DAYS_PARAM, Integer.toString(numberOfDaysToPredict))
+                .build();
+
+        try {
+            URL weatherQueryUrl = new URL(weatherQueryUri.toString());
+            Log.v(TAG, "URL: " + weatherQueryUrl);
+            return weatherQueryUrl;
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Builds the URL used to talk to the weather server using a location. This location is based
+     * on the query capabilities of the weather provider that we are using.
+     *
+     * @param locationQuery The location that will be queried for.
+     * @return The URL to use to query the weather server.
+     */
+    private static URL buildUrlWithLocationQuery(String locationQuery) {
         Uri builtUri = Uri.parse(WEATHER_API_BASE_URL).buildUpon()
-                .appendQueryParameter(QUERY_PARAM, userLocation)
+                .appendQueryParameter(QUERY_PARAM, locationQuery)
                 .appendQueryParameter(UNITS_PARAM, unit)
                 .appendQueryParameter(FORMAT_PARAM, dataFormat)
+                .appendQueryParameter(DAYS_PARAM, Integer.toString(numberOfDaysToPredict))
                 .build();
 
         URL completedUrl = null;

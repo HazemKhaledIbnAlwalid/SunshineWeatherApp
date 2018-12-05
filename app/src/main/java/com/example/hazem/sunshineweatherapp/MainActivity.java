@@ -1,16 +1,12 @@
 package com.example.hazem.sunshineweatherapp;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.databinding.DataBindingUtil;
 import android.net.Uri;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.support.v4.app.LoaderManager;
-import android.support.v4.content.AsyncTaskLoader;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
 import android.support.v7.app.AppCompatActivity;
@@ -20,16 +16,13 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Toast;
 
-import com.example.hazem.sunshineweatherapp.RecyclerViewPack.ForecastAdapter;
+import com.example.hazem.sunshineweatherapp.recyclerViewPack.ForecastAdapter;
 import com.example.hazem.sunshineweatherapp.data.SunshinePreferences;
 import com.example.hazem.sunshineweatherapp.data.WeatherContract;
 import com.example.hazem.sunshineweatherapp.databinding.ActivityMainBinding;
+import com.example.hazem.sunshineweatherapp.sync.SunshineSyncUtils;
 import com.example.hazem.sunshineweatherapp.utilities.FakeDataUtils;
-import com.example.hazem.sunshineweatherapp.utilities.NetworkUtils;
-
-import java.net.URL;
 
 public class MainActivity extends AppCompatActivity implements
         ForecastAdapter.ForecastAdapterOnClickHandler,
@@ -65,9 +58,6 @@ public class MainActivity extends AppCompatActivity implements
 
         getSupportActionBar().setElevation(0f);
 
-        // just for testing purposes
-        FakeDataUtils.insertFakeData(this);
-
         mainBinding = DataBindingUtil.setContentView(this, R.layout.activity_main);
 
         // prepare and start the recyclerView
@@ -90,6 +80,9 @@ public class MainActivity extends AppCompatActivity implements
 
         //start Loader Manager
         getSupportLoaderManager().initLoader(FORECAST_LOADER_ID, null, this);
+
+        //start the intent service that responsible for weather data sync
+        SunshineSyncUtils.initialize(this);
     }
 
     @NonNull

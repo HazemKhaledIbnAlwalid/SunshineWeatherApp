@@ -83,6 +83,15 @@
         <xliff:g id="humidity">%1.0f</xliff:g> %%
     </string>
 
+    <!-- Used by NotificationUtils -->
+
+    <!-- The format of the notification we show when the weather is updated -->
+    <string name="format_notification">
+        Forecast:<xliff:g id="condition">%1$s</xliff:g> -
+        High:<xliff:g id="high">%2$s</xliff:g>
+        Low:<xliff:g id="low">%3$s</xliff:g>
+    </string>
+
     <!-- Weather Conditions (From OpenWeatherMap) -->
     <string name="condition_2xx">Storm</string>
     <string name="condition_3xx">Drizzle</string>
